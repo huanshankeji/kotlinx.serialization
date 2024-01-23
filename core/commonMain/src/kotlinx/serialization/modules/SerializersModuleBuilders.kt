@@ -261,6 +261,17 @@ public inline fun <Base : Any> SerializersModuleBuilder.polymorphic(
     builder.buildTo(this)
 }
 
+/**
+ * TODO
+ */
+public inline fun <reified Base : Any> SerializersModuleBuilder.polymorphic(
+    type: KType = typeOf<Base>(),
+    baseSerializer: KSerializer<Base>? = null,
+    builderAction: PolymorphicModuleBuilder<Base>.() -> Unit = {}
+) {
+    TODO()
+}
+
 private class SerializerAlreadyRegisteredException internal constructor(msg: String) : IllegalArgumentException(msg) {
     internal constructor(
         baseClass: KClass<*>,

@@ -16,7 +16,7 @@ import kotlin.reflect.*
  * To obtain an instance of this builder, use [SerializersModuleBuilder.polymorphic] DSL function.
  */
 public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal constructor(
-    private val baseClass: KClass<Base>,
+    private val baseClass: KClass<Base>, // TODO refactor to a `KType`
     private val baseSerializer: KSerializer<Base>? = null
 ) {
     private val subclasses: MutableList<Pair<KClass<out Base>, KSerializer<out Base>>> = mutableListOf()
@@ -28,6 +28,13 @@ public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal cons
      */
     public fun <T : Base> subclass(subclass: KClass<T>, serializer: KSerializer<T>) {
         subclasses.add(subclass to serializer)
+    }
+
+    /**
+     * TODO
+     */
+    public fun <T : Base> subtype(subtype: KType, serializer: KSerializer<T>) {
+        TODO()
     }
 
     /**
@@ -116,3 +123,10 @@ public inline fun <Base : Any, reified T : Base> PolymorphicModuleBuilder<Base>.
  */
 public inline fun <Base : Any, reified T : Base> PolymorphicModuleBuilder<Base>.subclass(clazz: KClass<T>): Unit =
     subclass(clazz, serializer())
+
+/**
+ * TODO
+ */
+public inline fun <Base : Any, reified T : Base> PolymorphicModuleBuilder<Base>.subtype(serializer: KSerializer<T>): Unit =
+    subtype(typeOf<T>(), serializer)
+
