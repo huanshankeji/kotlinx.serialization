@@ -20,6 +20,8 @@ public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal cons
     private val baseSerializer: KSerializer<Base>? = null
 ) {
     private val subclasses: MutableList<Pair<KClass<out Base>, KSerializer<out Base>>> = mutableListOf()
+    private val subclassWithInferredTypeArgumentsProviders: MutableList<Pair<KClass<out Base>, WithTypeArgumentsSerializerProvider<out Base>>> =
+        mutableListOf()
     private var defaultSerializerProvider: ((Base) -> SerializationStrategy<Base>?)? = null
     private var defaultDeserializerProvider: ((String?) -> DeserializationStrategy<Base>?)? = null
 
@@ -28,6 +30,16 @@ public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal cons
      */
     public fun <T : Base> subclass(subclass: KClass<T>, serializer: KSerializer<T>) {
         subclasses.add(subclass to serializer)
+    }
+
+    /**
+     * Registers a [subclass] [serializer] in the resulting module under the [base class][Base] with the subclass type arguments provided with type inference.
+     * @see SerializersModuleBuilder.contextual
+     */
+    public fun <T : Base> subclassWithInferredTypeParameters(
+        subclass: KClass<T>, provider: WithTypeArgumentsSerializerProvider<T>
+    ) {
+        subclassWithInferredTypeArgumentsProviders.add(subclass to provider)
     }
 
     /**
@@ -90,6 +102,13 @@ public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal cons
                 baseClass,
                 kclass as KClass<Base>,
                 serializer.cast()
+            )
+        }
+        subclassWithInferredTypeArgumentsProviders.forEach { (kclass, serializerProvider) ->
+            builder.registerPolymorphicSerializerWithInferredTypeArguments(
+                baseClass,
+                kclass as KClass<Base>,
+                serializerProvider as WithTypeArgumentsSerializerProvider<Base>
             )
         }
 

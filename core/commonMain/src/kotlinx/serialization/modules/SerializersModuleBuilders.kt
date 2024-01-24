@@ -39,6 +39,8 @@ public inline fun SerializersModule(builderAction: SerializersModuleBuilder.() -
 @Suppress("FunctionName")
 public fun EmptySerializersModule(): SerializersModule = @Suppress("DEPRECATION") EmptySerializersModule
 
+public typealias WithTypeArgumentsSerializerProvider<Base> = (typeArgumentsSerializers: List<KSerializer<*>>) -> KSerializer<Base>
+
 /**
  * A builder class for [SerializersModule] DSL. To create an instance of builder, use [SerializersModule] factory function.
  */
@@ -46,8 +48,10 @@ public fun EmptySerializersModule(): SerializersModule = @Suppress("DEPRECATION"
 public class SerializersModuleBuilder @PublishedApi internal constructor() : SerializersModuleCollector {
     private val class2ContextualProvider: MutableMap<KClass<*>, ContextualProvider> = hashMapOf()
     private val polyBase2Serializers: MutableMap<KClass<*>, MutableMap<KClass<*>, KSerializer<*>>> = hashMapOf()
+    private val polyBase2WithTypeArgumentsSerializerProviders: MutableMap<KClass<*>, MutableMap<KClass<*>, WithTypeArgumentsSerializerProvider<*>>> = hashMapOf()
     private val polyBase2DefaultSerializerProvider: MutableMap<KClass<*>, PolymorphicSerializerProvider<*>> = hashMapOf()
     private val polyBase2NamedSerializers: MutableMap<KClass<*>, MutableMap<String, KSerializer<*>>> = hashMapOf()
+    private val polyBase2NamedWithTypeArgumentsSerializerProviders: MutableMap<KClass<*>, MutableMap<String, WithTypeArgumentsSerializerProvider<*>>> = hashMapOf()
     private val polyBase2DefaultDeserializerProvider: MutableMap<KClass<*>, PolymorphicDeserializerProvider<*>> = hashMapOf()
 
     /**
@@ -80,7 +84,7 @@ public class SerializersModuleBuilder @PublishedApi internal constructor() : Ser
      */
     public override fun <T : Any> contextual(
         kClass: KClass<T>,
-        provider: (typeArgumentsSerializers: List<KSerializer<*>>) -> KSerializer<*>
+        provider: WithTypeArgumentsSerializerProvider<*>
     ): Unit = registerSerializer(kClass, ContextualProvider.WithTypeArguments(provider))
 
     /**
@@ -227,9 +231,26 @@ public class SerializersModuleBuilder @PublishedApi internal constructor() : Ser
         names[name] = concreteSerializer
     }
 
+    internal fun <Base : Any, Sub : Base> registerPolymorphicSerializerWithInferredTypeArguments(
+        baseClass: KClass<Base>,
+        concreteClass: KClass<Sub>,
+        serializerProvider: WithTypeArgumentsSerializerProvider<Sub>,
+        allowOverwrite: Boolean = false
+    ) {
+        TODO()
+    }
+
     @PublishedApi
     internal fun build(): SerializersModule =
-        SerialModuleImpl(class2ContextualProvider, polyBase2Serializers, polyBase2DefaultSerializerProvider, polyBase2NamedSerializers, polyBase2DefaultDeserializerProvider)
+        SerialModuleImpl(
+            class2ContextualProvider,
+            polyBase2Serializers,
+            polyBase2WithTypeArgumentsSerializerProviders,
+            polyBase2DefaultSerializerProvider,
+            polyBase2NamedSerializers,
+            polyBase2NamedWithTypeArgumentsSerializerProviders,
+            polyBase2DefaultDeserializerProvider
+        )
 }
 
 /**
