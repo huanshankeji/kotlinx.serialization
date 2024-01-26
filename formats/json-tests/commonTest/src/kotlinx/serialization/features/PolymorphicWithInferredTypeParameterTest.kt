@@ -19,7 +19,7 @@ class PolymorphicWithInferredTypeParameterTest : JsonTestBase() {
 
     val responseModule = SerializersModule {
         polymorphic<Response<String>> {
-            subtype(serializer<OkResponse<String>>())
+            subclass(serializer<OkResponse<String>>())
         }
     }
 

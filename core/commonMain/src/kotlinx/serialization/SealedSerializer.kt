@@ -72,8 +72,8 @@ import kotlin.reflect.*
 @OptIn(ExperimentalSerializationApi::class)
 public class SealedClassSerializer<T : Any>(
     serialName: String,
-    override val baseClass: KClass<T>,
-    subclasses: Array<KClass<out T>>,
+    override val baseType: KTypeOf<T>,
+    subtypes: Array<KTypeOf<out T>>,
     subclassSerializers: Array<KSerializer<out T>>
 ) : AbstractPolymorphicSerializer<T>() {
 
@@ -90,11 +90,11 @@ public class SealedClassSerializer<T : Any>(
     @PublishedApi
     internal constructor(
         serialName: String,
-        baseClass: KClass<T>,
-        subclasses: Array<KClass<out T>>,
+        baseType: KTypeOf<T>,
+        subtypes: Array<KTypeOf<out T>>,
         subclassSerializers: Array<KSerializer<out T>>,
         classAnnotations: Array<Annotation>
-    ) : this(serialName, baseClass, subclasses, subclassSerializers) {
+    ) : this(serialName, baseType, subtypes, subclassSerializers) {
         this._annotations = classAnnotations.asList()
     }
 
@@ -104,7 +104,7 @@ public class SealedClassSerializer<T : Any>(
         buildSerialDescriptor(serialName, PolymorphicKind.SEALED) {
             element("type", String.serializer().descriptor)
             val elementDescriptor =
-                buildSerialDescriptor("kotlinx.serialization.Sealed<${baseClass.simpleName}>", SerialKind.CONTEXTUAL) {
+                buildSerialDescriptor("kotlinx.serialization.Sealed<$baseType>", SerialKind.CONTEXTUAL) {
                     // serialName2Serializer is guaranteed to have no duplicates — checked in `init`.
                     serialName2Serializer.forEach { (name, serializer) ->
                         element(name, serializer.descriptor)
@@ -119,20 +119,22 @@ public class SealedClassSerializer<T : Any>(
     private val serialName2Serializer: Map<String, KSerializer<out T>>
 
     init {
-        if (subclasses.size != subclassSerializers.size) {
-            throw IllegalArgumentException("All subclasses of sealed class ${baseClass.simpleName} should be marked @Serializable")
+        if (subtypes.size != subclassSerializers.size) {
+            throw IllegalArgumentException("All subclasses of sealed class $baseType should be marked @Serializable")
         }
 
         // Note: we do not check whether different serializers are provided if the same KClass duplicated in the `subclasses`.
         // Plugin should produce identical serializers, although they are not always strictly equal (e.g. new ObjectSerializer
         // may be created every time)
-        class2Serializer = subclasses.zip(subclassSerializers).toMap()
+        class2Serializer = subtypes.zip(subclassSerializers) { subtype, serializer ->
+            subtype.typedKClass<T>() to serializer
+        }.toMap()
         serialName2Serializer = class2Serializer.entries.groupingBy { it.value.descriptor.serialName }
             .aggregate<Map.Entry<KClass<out T>, KSerializer<out T>>, String, Map.Entry<KClass<*>, KSerializer<out T>>>
             { key, accumulator, element, _ ->
                 if (accumulator != null) {
                     error(
-                        "Multiple sealed subclasses of '$baseClass' have the same serial name '$key':" +
+                        "Multiple sealed subclasses of '$baseType' have the same serial name '$key':" +
                                 " '${accumulator.key}', '${element.key}'"
                     )
                 }

@@ -48,6 +48,12 @@ internal actual fun KClass<*>.platformSpecificSerializerNotRegistered(): Nothing
     )
 }
 
+internal actual data class KTypeImpl actual constructor(
+    override val arguments: List<KTypeProjection>,
+    override val classifier: KClassifier?,
+    override val isMarkedNullable: Boolean
+) : KType
+
 @Suppress("UNCHECKED_CAST", "DEPRECATION_ERROR")
 @OptIn(ExperimentalAssociatedObjects::class)
 internal actual fun <T : Any> KClass<T>.constructSerializerForGivenTypeArgs(vararg args: KSerializer<Any?>): KSerializer<T>? =
@@ -56,7 +62,7 @@ internal actual fun <T : Any> KClass<T>.constructSerializerForGivenTypeArgs(vara
         when {
             assocObject is KSerializer<*> -> assocObject as KSerializer<T>
             assocObject is SerializerFactory -> assocObject.serializer(*args) as KSerializer<T>
-            this.isInterface -> PolymorphicSerializer(this)
+            this.isInterface -> PolymorphicSerializer(defaultType())
             else -> null
         }
     } catch (e: dynamic) {

@@ -7,6 +7,7 @@ package kotlinx.serialization.json
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
+import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
 import kotlin.reflect.*
 
@@ -61,26 +62,29 @@ import kotlin.reflect.*
  *
  * @param T A root type for all classes that could be possibly encountered during serialization and deserialization.
  * Must be non-final class or interface.
- * @param baseClass A class token for [T].
+ * @param baseType A type token for [T].
  */
 @OptIn(ExperimentalSerializationApi::class)
-public abstract class JsonContentPolymorphicSerializer<T : Any>(private val baseClass: KClass<T>) : KSerializer<T> {
+public abstract class JsonContentPolymorphicSerializer<T : Any>(private val baseType: KTypeOf<T>) : KSerializer<T> {
+    // kept for the tests based on this old implementation to run
+    public constructor(baseClass: KClass<T>) : this(baseClass.defaultType())
+
     /**
      * A descriptor for this set of content-based serializers.
-     * By default, it uses the name composed of [baseClass] simple name,
+     * By default, it uses the name composed of [baseType] string representation,
      * kind is set to [PolymorphicKind.SEALED] and contains 0 elements.
      *
      * However, this descriptor can be overridden to achieve better representation of custom transformed JSON shape
      * for schema generating/introspection purposes.
      */
     override val descriptor: SerialDescriptor =
-        buildSerialDescriptor("JsonContentPolymorphicSerializer<${baseClass.simpleName}>", PolymorphicKind.SEALED)
+        buildSerialDescriptor("JsonContentPolymorphicSerializer<$baseType>", PolymorphicKind.SEALED)
 
     final override fun serialize(encoder: Encoder, value: T) {
         val actualSerializer =
-            encoder.serializersModule.getPolymorphic(baseClass, value)
+            encoder.serializersModule.getPolymorphic(baseType, value)
                     ?: value::class.serializerOrNull()
-                    ?: throwSubtypeNotRegistered(value::class, baseClass)
+                    ?: throwSubtypeNotRegistered(value::class, baseType)
         @Suppress("UNCHECKED_CAST")
         (actualSerializer as KSerializer<T>).serialize(encoder, value)
     }
@@ -99,9 +103,9 @@ public abstract class JsonContentPolymorphicSerializer<T : Any>(private val base
      */
     protected abstract fun selectDeserializer(element: JsonElement): DeserializationStrategy<T>
 
-    private fun throwSubtypeNotRegistered(subClass: KClass<*>, baseClass: KClass<*>): Nothing {
+    private fun throwSubtypeNotRegistered(subClass: KClass<*>, baseType: KTypeOf<*>): Nothing {
         val subClassName = subClass.simpleName ?: "$subClass"
-        val scope = "in the scope of '${baseClass.simpleName}'"
+        val scope = "in the scope of '$baseType'"
         throw SerializationException(
                     "Class '${subClassName}' is not registered for polymorphic serialization $scope.\n" +
                             "Mark the base class as 'sealed' or register the serializer explicitly.")

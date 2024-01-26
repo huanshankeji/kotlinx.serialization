@@ -6,6 +6,7 @@ package kotlinx.serialization.json.internal
 
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
+import kotlinx.serialization.internal.*
 import kotlinx.serialization.modules.*
 import kotlin.reflect.*
 
@@ -23,7 +24,7 @@ internal class PolymorphismValidator(
     }
 
     override fun <Base : Any, Sub : Base> polymorphic(
-        baseClass: KClass<Base>,
+        baseType: KTypeOf<Base>,
         actualClass: KClass<Sub>,
         actualSerializer: KSerializer<Sub>
     ) {
@@ -75,14 +76,14 @@ internal class PolymorphismValidator(
     }
 
     override fun <Base : Any> polymorphicDefaultSerializer(
-        baseClass: KClass<Base>,
+        baseType: KTypeOf<Base>,
         defaultSerializerProvider: (value: Base) -> SerializationStrategy<Base>?
     ) {
         // Nothing here
     }
 
     override fun <Base : Any> polymorphicDefaultDeserializer(
-        baseClass: KClass<Base>,
+        baseType: KTypeOf<Base>,
         defaultDeserializerProvider: (className: String?) -> DeserializationStrategy<Base>?
     ) {
         // Nothing here

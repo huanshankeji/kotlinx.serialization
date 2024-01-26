@@ -73,7 +73,7 @@ public fun SerializersModule.getContextualDescriptor(descriptor: SerialDescripto
 public fun SerializersModule.getPolymorphicDescriptors(descriptor: SerialDescriptor): List<SerialDescriptor> {
     val kClass = descriptor.capturedKClass ?: return emptyList()
     // SerializersModule is sealed class with the only implementation
-    return (this as SerialModuleImpl).polyBase2Serializers[kClass]?.values.orEmpty().map { it.descriptor }
+    return (this as SerialModuleImpl).polyBase2Serializers[kClass.defaultType()]?.values.orEmpty().map { it.descriptor }
 }
 
 /**

@@ -24,6 +24,12 @@ internal actual fun KClass<*>.platformSpecificSerializerNotRegistered(): Nothing
     )
 }
 
+internal actual data class KTypeImpl actual constructor(
+    override val arguments: List<KTypeProjection>,
+    override val classifier: KClassifier?,
+    override val isMarkedNullable: Boolean
+) : KType
+
 @Suppress(
     "UNCHECKED_CAST",
     "DEPRECATION_ERROR"

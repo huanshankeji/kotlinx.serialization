@@ -11,6 +11,7 @@ import kotlinx.serialization.features.sealed.SealedParent
 import kotlinx.serialization.internal.*
 import kotlinx.serialization.json.*
 import kotlinx.serialization.modules.*
+import kotlin.reflect.*
 import kotlin.test.*
 
 class SealedClassesSerializationTest : JsonTestBase() {
@@ -99,8 +100,8 @@ class SealedClassesSerializationTest : JsonTestBase() {
 
     private val ManualSerializer: KSerializer<SimpleSealed> = SealedClassSerializer(
         "SimpleSealed",
-        SimpleSealed::class,
-        arrayOf(SimpleSealed.SubSealedA::class, SimpleSealed.SubSealedB::class),
+        typeOf<SimpleSealed>(),
+        arrayOf(typeOf<SimpleSealed.SubSealedA>(), typeOf<SimpleSealed.SubSealedB>()),
         arrayOf(SimpleSealed.SubSealedA.serializer(), SimpleSealed.SubSealedB.serializer())
     )
 

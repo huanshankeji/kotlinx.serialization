@@ -45,10 +45,10 @@ public fun EmptySerializersModule(): SerializersModule = @Suppress("DEPRECATION"
 @OptIn(ExperimentalSerializationApi::class)
 public class SerializersModuleBuilder @PublishedApi internal constructor() : SerializersModuleCollector {
     private val class2ContextualProvider: MutableMap<KClass<*>, ContextualProvider> = hashMapOf()
-    private val polyBase2Serializers: MutableMap<KClass<*>, MutableMap<KClass<*>, KSerializer<*>>> = hashMapOf()
-    private val polyBase2DefaultSerializerProvider: MutableMap<KClass<*>, PolymorphicSerializerProvider<*>> = hashMapOf()
-    private val polyBase2NamedSerializers: MutableMap<KClass<*>, MutableMap<String, KSerializer<*>>> = hashMapOf()
-    private val polyBase2DefaultDeserializerProvider: MutableMap<KClass<*>, PolymorphicDeserializerProvider<*>> = hashMapOf()
+    private val polyBase2Serializers: MutableMap<KTypeOf<*>, MutableMap<KClass<*>, KSerializer<*>>> = hashMapOf()
+    private val polyBase2DefaultSerializerProvider: MutableMap<KTypeOf<*>, PolymorphicSerializerProvider<*>> = hashMapOf()
+    private val polyBase2NamedSerializers: MutableMap<KTypeOf<*>, MutableMap<String, KSerializer<*>>> = hashMapOf()
+    private val polyBase2DefaultDeserializerProvider: MutableMap<KTypeOf<*>, PolymorphicDeserializerProvider<*>> = hashMapOf()
 
     /**
      * Adds [serializer] associated with given [kClass] for contextual serialization.
@@ -89,16 +89,16 @@ public class SerializersModuleBuilder @PublishedApi internal constructor() : Ser
      * To overwrite an already registered serializer, [SerializersModule.overwriteWith] can be used.
      */
     public override fun <Base : Any, Sub : Base> polymorphic(
-        baseClass: KClass<Base>,
+        baseType: KTypeOf<Base>,
         actualClass: KClass<Sub>,
         actualSerializer: KSerializer<Sub>
     ) {
-        registerPolymorphicSerializer(baseClass, actualClass, actualSerializer)
+        registerPolymorphicSerializer(baseType, actualClass, actualSerializer)
     }
 
     /**
-     * Adds a default serializers provider associated with the given [baseClass] to the resulting module.
-     * [defaultSerializerProvider] is invoked when no polymorphic serializers for `value` in the scope of [baseClass] were found.
+     * Adds a default serializers provider associated with the given [baseType] to the resulting module.
+     * [defaultSerializerProvider] is invoked when no polymorphic serializers for `value` in the scope of [baseType] were found.
      *
      * Default serializers provider affects only serialization process. To affect deserialization process, use
      * [SerializersModuleBuilder.polymorphicDefaultDeserializer].
@@ -106,16 +106,16 @@ public class SerializersModuleBuilder @PublishedApi internal constructor() : Ser
      * [defaultSerializerProvider] can be stateful and lookup a serializer for the missing type dynamically.
      */
     public override fun <Base : Any> polymorphicDefaultSerializer(
-        baseClass: KClass<Base>,
+        baseType: KTypeOf<Base>,
         defaultSerializerProvider: (value: Base) -> SerializationStrategy<Base>?
     ) {
-        registerDefaultPolymorphicSerializer(baseClass, defaultSerializerProvider, false)
+        registerDefaultPolymorphicSerializer(baseType, defaultSerializerProvider, false)
     }
 
     /**
-     * Adds a default deserializers provider associated with the given [baseClass] to the resulting module.
+     * Adds a default deserializers provider associated with the given [baseType] to the resulting module.
      * [defaultDeserializerProvider] is invoked when no polymorphic serializers associated with the `className`
-     * in the scope of [baseClass] were found. `className` could be `null` for formats that support nullable class discriminators
+     * in the scope of [baseType] were found. `className` could be `null` for formats that support nullable class discriminators
      * (currently only `Json` with `useArrayPolymorphism` set to `false`).
      *
      * Default deserializers provider affects only deserialization process. To affect serialization process, use
@@ -126,10 +126,10 @@ public class SerializersModuleBuilder @PublishedApi internal constructor() : Ser
      * @see PolymorphicModuleBuilder.defaultDeserializer
      */
     public override fun <Base : Any> polymorphicDefaultDeserializer(
-        baseClass: KClass<Base>,
+        baseType: KTypeOf<Base>,
         defaultDeserializerProvider: (className: String?) -> DeserializationStrategy<Base>?
     ) {
-        registerDefaultPolymorphicDeserializer(baseClass, defaultDeserializerProvider, false)
+        registerDefaultPolymorphicDeserializer(baseType, defaultDeserializerProvider, false)
     }
 
     /**
@@ -159,7 +159,7 @@ public class SerializersModuleBuilder @PublishedApi internal constructor() : Ser
 
     @JvmName("registerDefaultPolymorphicSerializer") // Don't mangle method name for prettier stack traces
     internal fun <Base : Any> registerDefaultPolymorphicSerializer(
-        baseClass: KClass<Base>,
+        baseClass: KTypeOf<Base>,
         defaultSerializerProvider: (value: Base) -> SerializationStrategy<Base>?,
         allowOverwrite: Boolean
     ) {
@@ -172,7 +172,7 @@ public class SerializersModuleBuilder @PublishedApi internal constructor() : Ser
 
     @JvmName("registerDefaultPolymorphicDeserializer") // Don't mangle method name for prettier stack traces
     internal fun <Base : Any> registerDefaultPolymorphicDeserializer(
-        baseClass: KClass<Base>,
+        baseClass: KTypeOf<Base>,
         defaultDeserializerProvider: (className: String?) -> DeserializationStrategy<Base>?,
         allowOverwrite: Boolean
     ) {
@@ -185,16 +185,16 @@ public class SerializersModuleBuilder @PublishedApi internal constructor() : Ser
 
     @JvmName("registerPolymorphicSerializer") // Don't mangle method name for prettier stack traces
     internal fun <Base : Any, Sub : Base> registerPolymorphicSerializer(
-        baseClass: KClass<Base>,
+        baseType: KTypeOf<Base>,
         concreteClass: KClass<Sub>,
         concreteSerializer: KSerializer<Sub>,
         allowOverwrite: Boolean = false
     ) {
         // Check for overwrite
         val name = concreteSerializer.descriptor.serialName
-        val baseClassSerializers = polyBase2Serializers.getOrPut(baseClass, ::hashMapOf)
+        val baseClassSerializers = polyBase2Serializers.getOrPut(baseType, ::hashMapOf)
         val previousSerializer = baseClassSerializers[concreteClass]
-        val names = polyBase2NamedSerializers.getOrPut(baseClass, ::hashMapOf)
+        val names = polyBase2NamedSerializers.getOrPut(baseType, ::hashMapOf)
         if (allowOverwrite) {
             // Remove previous serializers from name mapping
             if (previousSerializer != null) {
@@ -208,7 +208,7 @@ public class SerializersModuleBuilder @PublishedApi internal constructor() : Ser
         // Overwrite prohibited
         if (previousSerializer != null) {
             if (previousSerializer != concreteSerializer) {
-                throw SerializerAlreadyRegisteredException(baseClass, concreteClass)
+                throw SerializerAlreadyRegisteredException(baseType, concreteClass)
             } else {
                 // Cleanup name mapping
                 names.remove(previousSerializer.descriptor.serialName)
@@ -216,9 +216,9 @@ public class SerializersModuleBuilder @PublishedApi internal constructor() : Ser
         }
         val previousByName = names[name]
         if (previousByName != null) {
-            val conflictingClass = polyBase2Serializers[baseClass]!!.asSequence().find { it.value === previousByName }
+            val conflictingClass = polyBase2Serializers[baseType]!!.asSequence().find { it.value === previousByName }
             throw IllegalArgumentException(
-                "Multiple polymorphic serializers for base class '$baseClass' " +
+                "Multiple polymorphic serializers for base class '$baseType' " +
                         "have the same serial name '$name': '$concreteClass' and '$conflictingClass'"
             )
         }
@@ -251,30 +251,27 @@ public inline fun <reified T : Any> SerializersModuleBuilder.contextual(serializ
  *
  * @see PolymorphicSerializer
  */
-public inline fun <Base : Any> SerializersModuleBuilder.polymorphic(
-    baseClass: KClass<Base>,
+public inline fun <reified Base : Any> SerializersModuleBuilder.polymorphic(
+    baseType: KType = typeOf<Base>(),
     baseSerializer: KSerializer<Base>? = null,
     builderAction: PolymorphicModuleBuilder<Base>.() -> Unit = {}
 ) {
-    val builder = PolymorphicModuleBuilder(baseClass, baseSerializer)
+    val builder = PolymorphicModuleBuilder(baseType, baseSerializer)
     builder.builderAction()
     builder.buildTo(this)
 }
 
-/**
- * TODO
- */
 public inline fun <reified Base : Any> SerializersModuleBuilder.polymorphic(
-    type: KType = typeOf<Base>(),
+    baseClass: KClass<Base>,
     baseSerializer: KSerializer<Base>? = null,
     builderAction: PolymorphicModuleBuilder<Base>.() -> Unit = {}
 ) {
-    TODO()
+    polymorphic(baseClass.defaultType(), baseSerializer, builderAction)
 }
 
 private class SerializerAlreadyRegisteredException internal constructor(msg: String) : IllegalArgumentException(msg) {
     internal constructor(
-        baseClass: KClass<*>,
+        baseType: KTypeOf<*>,
         concreteClass: KClass<*>
-    ) : this("Serializer for $concreteClass already registered in the scope of $baseClass")
+    ) : this("Serializer for $concreteClass already registered in the scope of $baseType")
 }

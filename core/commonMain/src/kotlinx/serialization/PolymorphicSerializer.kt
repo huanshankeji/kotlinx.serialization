@@ -66,11 +66,14 @@ import kotlin.reflect.*
  * @see SerializersModuleBuilder.polymorphic
  */
 @OptIn(ExperimentalSerializationApi::class)
-public class PolymorphicSerializer<T : Any>(override val baseClass: KClass<T>) : AbstractPolymorphicSerializer<T>() {
+public class PolymorphicSerializer<T : Any>(override val baseType: KTypeOf<T>) : AbstractPolymorphicSerializer<T>() {
+
+    // kept for the tests based on this old implementation to run
+    public constructor(baseClass: KClass<T>) : this(baseClass.defaultType())
 
     @PublishedApi // See comment in SealedClassSerializer
     internal constructor(
-        baseClass: KClass<T>,
+        baseClass: KTypeOf<T>,
         classAnnotations: Array<Annotation>
     ) : this(baseClass) {
         _annotations = classAnnotations.asList()
@@ -83,14 +86,14 @@ public class PolymorphicSerializer<T : Any>(override val baseClass: KClass<T>) :
             element("type", String.serializer().descriptor)
             element(
                 "value",
-                buildSerialDescriptor("kotlinx.serialization.Polymorphic<${baseClass.simpleName}>", SerialKind.CONTEXTUAL)
+                buildSerialDescriptor("kotlinx.serialization.Polymorphic<$baseType>", SerialKind.CONTEXTUAL)
             )
             annotations = _annotations
-        }.withContext(baseClass)
+        }.withContext(baseType.kclass())
     }
 
     override fun toString(): String {
-        return "kotlinx.serialization.PolymorphicSerializer(baseClass: $baseClass)"
+        return "kotlinx.serialization.PolymorphicSerializer(baseClass: $baseType)"
     }
 }
 
@@ -99,11 +102,11 @@ public fun <T : Any> AbstractPolymorphicSerializer<T>.findPolymorphicSerializer(
     decoder: CompositeDecoder,
     klassName: String?
 ): DeserializationStrategy<T> =
-    findPolymorphicSerializerOrNull(decoder, klassName) ?: throwSubtypeNotRegistered(klassName, baseClass)
+    findPolymorphicSerializerOrNull(decoder, klassName) ?: throwSubtypeNotRegistered(klassName, baseType.kclass())
 
 @InternalSerializationApi
 public fun <T : Any> AbstractPolymorphicSerializer<T>.findPolymorphicSerializer(
     encoder: Encoder,
     value: T
 ): SerializationStrategy<T> =
-    findPolymorphicSerializerOrNull(encoder, value) ?: throwSubtypeNotRegistered(value::class, baseClass)
+    findPolymorphicSerializerOrNull(encoder, value) ?: throwSubtypeNotRegistered(value::class, baseType.kclass())

@@ -24,9 +24,12 @@ import kotlin.reflect.*
 public abstract class AbstractPolymorphicSerializer<T : Any> internal constructor() : KSerializer<T> {
 
     /**
-     * Base class for all classes that this polymorphic serializer can serialize or deserialize.
+     * Base type for all classes that this polymorphic serializer can serialize or deserialize.
      */
-    public abstract val baseClass: KClass<T>
+    public abstract val baseType: KTypeOf<T>
+
+    // kept for the tests based on this old implementation to run
+    public val baseClass: KClass<T> get() = baseType.typedKClass()
 
     public final override fun serialize(encoder: Encoder, value: T) {
         val actualSerializer = findPolymorphicSerializer(encoder, value)
@@ -74,18 +77,18 @@ public abstract class AbstractPolymorphicSerializer<T : Any> internal constructo
     }
 
     /**
-     * Lookups an actual serializer for given [klassName] withing the current [base class][baseClass].
+     * Lookups an actual serializer for given [klassName] withing the current [base type][baseType].
      * May use context from the [decoder].
      */
     @InternalSerializationApi
     public open fun findPolymorphicSerializerOrNull(
         decoder: CompositeDecoder,
         klassName: String?
-    ): DeserializationStrategy<T>? = decoder.serializersModule.getPolymorphic(baseClass, klassName)
+    ): DeserializationStrategy<T>? = decoder.serializersModule.getPolymorphic(baseType, klassName)
 
 
     /**
-     * Lookups an actual serializer for given [value] within the current [base class][baseClass].
+     * Lookups an actual serializer for given [value] within the current [base type][baseType].
      * May use context from the [encoder].
      */
     @InternalSerializationApi
@@ -93,7 +96,7 @@ public abstract class AbstractPolymorphicSerializer<T : Any> internal constructo
         encoder: Encoder,
         value: T
     ): SerializationStrategy<T>? =
-        encoder.serializersModule.getPolymorphic(baseClass, value)
+        encoder.serializersModule.getPolymorphic(baseType, value)
 }
 
 @JvmName("throwSubtypeNotRegistered")

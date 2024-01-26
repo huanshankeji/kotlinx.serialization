@@ -50,17 +50,27 @@ public sealed class SerializersModule {
     ): KSerializer<T>?
 
     /**
-     * Returns a polymorphic serializer registered for a class of the given [value] in the scope of [baseClass].
+     * Returns a polymorphic serializer registered for a class of the given [value] in the scope of [baseType].
      */
     @ExperimentalSerializationApi
-    public abstract fun <T : Any> getPolymorphic(baseClass: KClass<in T>, value: T): SerializationStrategy<T>?
+    public abstract fun <T : Any> getPolymorphic(baseType: KTypeOf<in T>, value: T): SerializationStrategy<T>?
+
+    // kept for the tests based on this old implementation to run
+    @ExperimentalSerializationApi
+    public fun <T : Any> getPolymorphic(baseClass: KClass<in T>, value: T): SerializationStrategy<T>? =
+        getPolymorphic(baseClass.defaultType(), value)
 
     /**
-     * Returns a polymorphic deserializer registered for a [serializedClassName] in the scope of [baseClass]
+     * Returns a polymorphic deserializer registered for a [serializedClassName] in the scope of [baseType]
      * or default value constructed from [serializedClassName] if a default serializer provider was registered.
      */
     @ExperimentalSerializationApi
-    public abstract fun <T : Any> getPolymorphic(baseClass: KClass<in T>, serializedClassName: String?): DeserializationStrategy<T>?
+    public abstract fun <T : Any> getPolymorphic(baseType: KTypeOf<in T>, serializedClassName: String?): DeserializationStrategy<T>?
+
+    // kept for the tests based on this old implementation to run
+    @ExperimentalSerializationApi
+    public fun <T : Any> getPolymorphic(baseClass: KClass<in T>, serializedClassName: String?): DeserializationStrategy<T>? =
+        getPolymorphic(baseClass.defaultType(), serializedClassName)
 
     /**
      * Copies contents of this module to the given [collector].
@@ -111,25 +121,25 @@ public infix fun SerializersModule.overwriteWith(other: SerializersModule): Seri
         }
 
         override fun <Base : Any, Sub : Base> polymorphic(
-            baseClass: KClass<Base>,
+            baseType: KTypeOf<Base>,
             actualClass: KClass<Sub>,
             actualSerializer: KSerializer<Sub>
         ) {
-            registerPolymorphicSerializer(baseClass, actualClass, actualSerializer, allowOverwrite = true)
+            registerPolymorphicSerializer(baseType, actualClass, actualSerializer, allowOverwrite = true)
         }
 
         override fun <Base : Any> polymorphicDefaultSerializer(
-            baseClass: KClass<Base>,
+            baseType: KTypeOf<Base>,
             defaultSerializerProvider: (value: Base) -> SerializationStrategy<Base>?
         ) {
-            registerDefaultPolymorphicSerializer(baseClass, defaultSerializerProvider, allowOverwrite = true)
+            registerDefaultPolymorphicSerializer(baseType, defaultSerializerProvider, allowOverwrite = true)
         }
 
         override fun <Base : Any> polymorphicDefaultDeserializer(
-            baseClass: KClass<Base>,
+            baseType: KTypeOf<Base>,
             defaultDeserializerProvider: (className: String?) -> DeserializationStrategy<Base>?
         ) {
-            registerDefaultPolymorphicDeserializer(baseClass, defaultDeserializerProvider, allowOverwrite = true)
+            registerDefaultPolymorphicDeserializer(baseType, defaultDeserializerProvider, allowOverwrite = true)
         }
     })
 }
@@ -144,27 +154,28 @@ public infix fun SerializersModule.overwriteWith(other: SerializersModule): Seri
 @OptIn(ExperimentalSerializationApi::class)
 internal class SerialModuleImpl(
     private val class2ContextualFactory: Map<KClass<*>, ContextualProvider>,
-    @JvmField val polyBase2Serializers: Map<KClass<*>, Map<KClass<*>, KSerializer<*>>>,
-    private val polyBase2DefaultSerializerProvider: Map<KClass<*>, PolymorphicSerializerProvider<*>>,
-    private val polyBase2NamedSerializers: Map<KClass<*>, Map<String, KSerializer<*>>>,
-    private val polyBase2DefaultDeserializerProvider: Map<KClass<*>, PolymorphicDeserializerProvider<*>>
+    @JvmField val polyBase2Serializers: Map<KTypeOf<*>, Map<KClass<*>, KSerializer<*>>>,
+    private val polyBase2DefaultSerializerProvider: Map<KTypeOf<*>, PolymorphicSerializerProvider<*>>,
+    private val polyBase2NamedSerializers: Map<KTypeOf<*>, Map<String, KSerializer<*>>>,
+    private val polyBase2DefaultDeserializerProvider: Map<KTypeOf<*>, PolymorphicDeserializerProvider<*>>
 ) : SerializersModule() {
 
-    override fun <T : Any> getPolymorphic(baseClass: KClass<in T>, value: T): SerializationStrategy<T>? {
+    override fun <T : Any> getPolymorphic(baseType: KTypeOf<in T>, value: T): SerializationStrategy<T>? {
+        val baseClass = baseType.kclass()
         if (!baseClass.isInstance(value)) return null
         // Registered
-        val registered = polyBase2Serializers[baseClass]?.get(value::class) as? SerializationStrategy<T>
+        val registered = polyBase2Serializers[baseType]?.get(value::class) as? SerializationStrategy<T>
         if (registered != null) return registered
         // Default
-        return (polyBase2DefaultSerializerProvider[baseClass] as? PolymorphicSerializerProvider<T>)?.invoke(value)
+        return (polyBase2DefaultSerializerProvider[baseType] as? PolymorphicSerializerProvider<T>)?.invoke(value)
     }
 
-    override fun <T : Any> getPolymorphic(baseClass: KClass<in T>, serializedClassName: String?): DeserializationStrategy<T>? {
+    override fun <T : Any> getPolymorphic(baseType: KTypeOf<in T>, serializedClassName: String?): DeserializationStrategy<T>? {
         // Registered
-        val registered = polyBase2NamedSerializers[baseClass]?.get(serializedClassName) as? KSerializer<out T>
+        val registered = polyBase2NamedSerializers[baseType]?.get(serializedClassName) as? KSerializer<out T>
         if (registered != null) return registered
         // Default
-        return (polyBase2DefaultDeserializerProvider[baseClass] as? PolymorphicDeserializerProvider<T>)?.invoke(serializedClassName)
+        return (polyBase2DefaultDeserializerProvider[baseType] as? PolymorphicDeserializerProvider<T>)?.invoke(serializedClassName)
     }
 
     override fun <T : Any> getContextual(kClass: KClass<T>, typeArgumentsSerializers: List<KSerializer<*>>): KSerializer<T>? {

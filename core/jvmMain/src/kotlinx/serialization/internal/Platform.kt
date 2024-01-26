@@ -31,6 +31,16 @@ internal fun Class<*>.serializerNotRegistered(): Nothing {
     throw SerializationException(this.kotlin.notRegisteredMessage())
 }
 
+internal actual data class KTypeImpl(
+    override val arguments: List<KTypeProjection>,
+    override val classifier: KClassifier?,
+    override val isMarkedNullable: Boolean,
+    override val annotations: List<Annotation>
+) : KType {
+    actual constructor(arguments: List<KTypeProjection>, classifier: KClassifier?, isMarkedNullable: Boolean) :
+        this(arguments, classifier, isMarkedNullable, emptyList())
+}
+
 internal actual fun <T : Any> KClass<T>.constructSerializerForGivenTypeArgs(vararg args: KSerializer<Any?>): KSerializer<T>? {
     return java.constructSerializerForGivenTypeArgs(*args)
 }
@@ -52,7 +62,7 @@ internal fun <T: Any> Class<T>.constructSerializerForGivenTypeArgs(vararg args: 
     if (fromNamedCompanion != null) return fromNamedCompanion
     // Check for polymorphic
     return if (isPolymorphicSerializer()) {
-        PolymorphicSerializer(this.kotlin)
+        PolymorphicSerializer(kotlin.defaultType())
     } else {
         null
     }
@@ -113,7 +123,7 @@ private fun <T: Any> Class<T>.interfaceSerializer(): KSerializer<T>? {
      */
     val serializable = getAnnotation(Serializable::class.java)
     if (serializable == null || serializable.with == PolymorphicSerializer::class) {
-        return PolymorphicSerializer(this.kotlin)
+        return PolymorphicSerializer(kotlin.defaultType())
     }
     return null
 }

@@ -9,14 +9,14 @@ import kotlinx.serialization.internal.*
 import kotlin.reflect.*
 
 /**
- * A builder which registers all its content for polymorphic serialization in the scope of the [base class][baseClass].
- * If [baseSerializer] is present, registers it as a serializer for [baseClass] (which will be used if base class is serializable).
+ * A builder which registers all its content for polymorphic serialization in the scope of the [base type][baseType].
+ * If [baseSerializer] is present, registers it as a serializer for [baseType] (which will be used if base type is serializable).
  * Subclasses and its serializers can be added with [subclass] builder function.
  *
  * To obtain an instance of this builder, use [SerializersModuleBuilder.polymorphic] DSL function.
  */
 public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal constructor(
-    private val baseClass: KClass<Base>, // TODO refactor to a `KType`
+    private val baseType: KTypeOf<Base>,
     private val baseSerializer: KSerializer<Base>? = null
 ) {
     private val subclasses: MutableList<Pair<KClass<out Base>, KSerializer<out Base>>> = mutableListOf()
@@ -31,14 +31,7 @@ public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal cons
     }
 
     /**
-     * TODO
-     */
-    public fun <T : Base> subtype(subtype: KType, serializer: KSerializer<T>) {
-        TODO()
-    }
-
-    /**
-     * Adds a default serializers provider associated with the given [baseClass] to the resulting module.
+     * Adds a default serializers provider associated with the given [baseType] to the resulting module.
      * [defaultDeserializerProvider] is invoked when no polymorphic serializers associated with the `className`
      * were found. `className` could be `null` for formats that support nullable class discriminators
      * (currently only `Json` with `JsonBuilder.useArrayPolymorphism` set to `false`)
@@ -56,13 +49,13 @@ public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal cons
      */
     public fun defaultDeserializer(defaultDeserializerProvider: (className: String?) -> DeserializationStrategy<Base>?) {
         require(this.defaultDeserializerProvider == null) {
-            "Default deserializer provider is already registered for class $baseClass: ${this.defaultDeserializerProvider}"
+            "Default deserializer provider is already registered for class $baseType: ${this.defaultDeserializerProvider}"
         }
         this.defaultDeserializerProvider = defaultDeserializerProvider
     }
 
     /**
-     * Adds a default deserializers provider associated with the given [baseClass] to the resulting module.
+     * Adds a default deserializers provider associated with the given [baseType] to the resulting module.
      * This function affect only deserialization process. To avoid confusion, it was deprecated and replaced with [defaultDeserializer].
      * To affect serialization process, use [SerializersModuleBuilder.polymorphicDefaultSerializer].
      *
@@ -91,10 +84,10 @@ public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal cons
     @Suppress("UNCHECKED_CAST")
     @PublishedApi
     internal fun buildTo(builder: SerializersModuleBuilder) {
-        if (baseSerializer != null) builder.registerPolymorphicSerializer(baseClass, baseClass, baseSerializer)
+        if (baseSerializer != null) builder.registerPolymorphicSerializer(baseType, baseType.typedKClass(), baseSerializer)
         subclasses.forEach { (kclass, serializer) ->
             builder.registerPolymorphicSerializer(
-                baseClass,
+                baseType,
                 kclass as KClass<Base>,
                 serializer.cast()
             )
@@ -102,12 +95,12 @@ public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal cons
 
         val defaultSerializer = defaultSerializerProvider
         if (defaultSerializer != null) {
-            builder.registerDefaultPolymorphicSerializer(baseClass, defaultSerializer, false)
+            builder.registerDefaultPolymorphicSerializer(baseType, defaultSerializer, false)
         }
 
         val defaultDeserializer = defaultDeserializerProvider
         if (defaultDeserializer != null) {
-            builder.registerDefaultPolymorphicDeserializer(baseClass, defaultDeserializer, false)
+            builder.registerDefaultPolymorphicDeserializer(baseType, defaultDeserializer, false)
         }
     }
 }
@@ -123,10 +116,3 @@ public inline fun <Base : Any, reified T : Base> PolymorphicModuleBuilder<Base>.
  */
 public inline fun <Base : Any, reified T : Base> PolymorphicModuleBuilder<Base>.subclass(clazz: KClass<T>): Unit =
     subclass(clazz, serializer())
-
-/**
- * TODO
- */
-public inline fun <Base : Any, reified T : Base> PolymorphicModuleBuilder<Base>.subtype(serializer: KSerializer<T>): Unit =
-    subtype(typeOf<T>(), serializer)
-

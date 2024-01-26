@@ -6,7 +6,6 @@ package kotlinx.serialization.internal
 
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
-import kotlin.native.concurrent.*
 import kotlin.reflect.*
 
 internal object InternalHexConverter {
@@ -117,6 +116,38 @@ internal fun KType.kclass() = when (val t = classifier) {
 // If you are going to change this error message, please also actualize the message in the compiler intrinsics here:
 // Kotlin/plugins/kotlinx-serialization/kotlinx-serialization.backend/src/org/jetbrains/kotlinx/serialization/compiler/backend/ir/SerializationJvmIrIntrinsicSupport.kt#argumentTypeOrGenerateException
 internal fun KTypeProjection.typeOrThrow(): KType = requireNotNull(type) { "Star projections in type arguments are not allowed, but had $type" }
+
+/**
+ * An alias of [KType] that helps retain type information at compile-time.
+ */
+// made `public` for the "json" module to use
+@InternalSerializationApi
+public typealias KTypeOf<@Suppress("UNUSED_TYPEALIAS_PARAMETER") T> = KType
+
+@PublishedApi
+@Suppress("UNCHECKED_CAST")
+internal fun <T : Any> KTypeOf<T>.typedKClass() : KClass<T> =
+    kclass() as KClass<T>
+
+internal expect class KTypeImpl : KType {
+    constructor(arguments: List<KTypeProjection>, classifier: KClassifier?, isMarkedNullable: Boolean)
+}
+
+/**
+ * Returns the default type of this [KClass] with its type parameters filled with star-projections,
+ * representing a type instantiated with any type arguments of this [KClass].
+ */
+// made `public` for the "json" module to use
+@InternalSerializationApi
+public fun <T : Any> KClass<T>.defaultType(): KTypeOf<T> =
+    /* TODO It seems impossible to get the number of type parameters on targets other than JVM. "22" might not work here.
+        In such a case consider refactoring `KTypeOf` to a sealed class wrapping either a `KClass` or a `KType`. */
+    @Suppress("UNREACHABLE_CODE")
+    KTypeImpl(List(22) { KTypeProjection(null, null) }, this, true)
+
+@PublishedApi
+internal fun <T : Any> KClass<T>.createType(arguments: List<KType>, isMarkedNullable: Boolean): KTypeOf<T> =
+    KTypeImpl(arguments.map { KTypeProjection(KVariance.INVARIANT, it) }, this, isMarkedNullable)
 
 /**
  * Constructs KSerializer<D<T0, T1, ...>> by given KSerializer<T0>, KSerializer<T1>, ...
