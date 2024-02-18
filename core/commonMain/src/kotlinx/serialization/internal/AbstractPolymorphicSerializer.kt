@@ -31,13 +31,17 @@ public abstract class AbstractPolymorphicSerializer<T : Any> internal constructo
 
     public final override fun serialize(encoder: Encoder, value: T) {
         val actualSerializer = findPolymorphicSerializer(encoder, value)
+        val serialPolymorphicNumberInSerializersModule = if (descriptor.useSerialPolymorphicNumbers)
+            findSerialPolymorphicNumberOrNull(encoder, value)
+        else
+            null
         encoder.encodeStructure(descriptor) {
             if (descriptor.useSerialPolymorphicNumbers)
                 encodeIntElement(
                     descriptor,
                     0,
-                    // it seems not possible to cache this with the current implementation that serializers are completely separated from serializers modules
-                    actualSerializer.descriptor.serialPolymorphicNumberByBaseClass.getValue(baseClass)
+                    serialPolymorphicNumberInSerializersModule
+                        ?: actualSerializer.descriptor.serialPolymorphicNumberByBaseClass.getValue(baseClass)
                 )
             else
                 encodeStringElement(descriptor, 0, actualSerializer.descriptor.serialName)
@@ -125,6 +129,16 @@ public abstract class AbstractPolymorphicSerializer<T : Any> internal constructo
         value: T
     ): SerializationStrategy<T>? =
         encoder.serializersModule.getPolymorphic(baseClass, value)
+
+    /**
+     *  TODO
+     */
+    @InternalSerializationApi
+    public fun <T : Any> AbstractPolymorphicSerializer<T>.findSerialPolymorphicNumberOrNull(
+        encoder: Encoder,
+        value: T
+    ): Int? =
+        encoder.serializersModule.getSerialPolymorphicNumber(baseClass, value)
 }
 
 @JvmName("throwSubtypeNotRegistered")
