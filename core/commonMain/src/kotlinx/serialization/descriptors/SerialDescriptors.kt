@@ -49,13 +49,12 @@ import kotlin.reflect.*
  * }
  * ```
  */
-@Suppress("FunctionName")
 @OptIn(ExperimentalSerializationApi::class)
-public fun buildClassSerialDescriptor(
+public fun buildClassSerialDescriptorNew(
     serialName: String,
     vararg typeParameters: SerialDescriptor,
-    useSerialPolymorphicNumbers: Boolean = false,
-    serialPolymorphicNumbers: Map<KClass<*>, Int> = emptyMap(),
+    useSerialPolymorphicNumbers: Boolean,
+    serialPolymorphicNumbers: Map<KClass<*>, Int>,
     builderAction: ClassSerialDescriptorBuilder.() -> Unit = {}
 ): SerialDescriptor {
     require(serialName.isNotBlank()) { "Blank serial names are prohibited" }
@@ -71,6 +70,19 @@ public fun buildClassSerialDescriptor(
         sdBuilder
     )
 }
+
+public fun buildClassSerialDescriptor(
+    serialName: String,
+    vararg typeParameters: SerialDescriptor,
+    builderAction: ClassSerialDescriptorBuilder.() -> Unit = {}
+): SerialDescriptor =
+    buildClassSerialDescriptorNew(
+        serialName,
+        *typeParameters,
+        useSerialPolymorphicNumbers = false,
+        serialPolymorphicNumbers = emptyMap(),
+        builderAction = builderAction
+    )
 
 /**
  * Factory to create a trivial primitive descriptors.
@@ -140,12 +152,12 @@ internal class WrappedSerialDescriptor(override val serialName: String, original
  */
 @InternalSerializationApi
 @OptIn(ExperimentalSerializationApi::class)
-public fun buildSerialDescriptor(
+public fun buildSerialDescriptorNew(
     serialName: String,
     kind: SerialKind,
     vararg typeParameters: SerialDescriptor,
-    useSerialPolymorphicNumbers: Boolean = false,
-    serialPolymorphicNumbers: Map<KClass<*>, Int> = emptyMap(),
+    useSerialPolymorphicNumbers: Boolean,
+    serialPolymorphicNumbers: Map<KClass<*>, Int>,
     builder: ClassSerialDescriptorBuilder.() -> Unit = {}
 ): SerialDescriptor {
     require(serialName.isNotBlank()) { "Blank serial names are prohibited" }
@@ -162,6 +174,23 @@ public fun buildSerialDescriptor(
         sdBuilder
     )
 }
+
+@InternalSerializationApi
+@OptIn(ExperimentalSerializationApi::class)
+public fun buildSerialDescriptor(
+    serialName: String,
+    kind: SerialKind,
+    vararg typeParameters: SerialDescriptor,
+    builder: ClassSerialDescriptorBuilder.() -> Unit = {}
+): SerialDescriptor =
+    buildSerialDescriptorNew(
+        serialName,
+        kind,
+        *typeParameters,
+        useSerialPolymorphicNumbers = false,
+        serialPolymorphicNumbers = emptyMap(),
+        builder = builder
+    )
 
 
 /**
