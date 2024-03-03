@@ -93,14 +93,12 @@ public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal cons
             )
         }
 
-        val defaultSerializer = defaultSerializerProvider
-        if (defaultSerializer != null) {
-            builder.registerDefaultPolymorphicSerializer(baseClass, defaultSerializer, false)
+        defaultSerializerProvider?.let {
+            builder.registerDefaultPolymorphicSerializer(baseClass, it, false)
         }
 
-        val defaultDeserializer = defaultDeserializerProvider
-        if (defaultDeserializer != null) {
-            builder.registerDefaultPolymorphicDeserializer(baseClass, defaultDeserializer, false)
+        defaultDeserializerProvider?.let {
+            builder.registerDefaultPolymorphicDeserializer(baseClass, it, false)
         }
     }
 }
