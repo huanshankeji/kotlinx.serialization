@@ -31,6 +31,16 @@ public class PolymorphicModuleBuilder<in Base : Any> @PublishedApi internal cons
     }
 
     /**
+     * TODO
+     */
+    public fun defaultSerializer(defaultSerializerProvider: ((value: Base) -> SerializationStrategy<Base>?)?) {
+        require(this.defaultSerializerProvider == null) {
+            "Default deserializer provider is already registered for class $baseClass: ${this.defaultDeserializerProvider}"
+        }
+        this.defaultSerializerProvider = defaultSerializerProvider
+    }
+
+    /**
      * Adds a default serializers provider associated with the given [baseClass] to the resulting module.
      * [defaultDeserializerProvider] is invoked when no polymorphic serializers associated with the `className`
      * were found. `className` could be `null` for formats that support nullable class discriminators
