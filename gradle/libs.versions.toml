@@ -22,6 +22,7 @@ cbor = "4.2.0"
 typesafe-config = "1.4.1"
 junit4 = "4.12"
 protoc = "3.17.3"
+vertx = "4.5.10"
 
 [libraries]
 gradlePlugin-kotlin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin"}
@@ -54,6 +55,7 @@ protoc = { module = "com.google.protobuf:protoc", version.ref = "protoc"}
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protoc" }
 moshi-kotlin = { module = "com.squareup.moshi:moshi-kotlin", version.ref = "moshi" }
 moshi-codegen = { module = "com.squareup.moshi:moshi-kotlin-codegen", version.ref = "moshi" }
+vertx-core = { module = "io.vertx:vertx-core", version.ref = "vertx" }
 
 [plugins]
 knit = { id = "org.jetbrains.kotlinx.knit", version.ref = "knit" }
